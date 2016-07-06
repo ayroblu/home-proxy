@@ -1,43 +1,35 @@
 var http = require('http')
 , httpProxy = require('http-proxy')
 
-httpProxy.setMaxSockets(4096)
-
-var home = new httpProxy.HttpProxy({
-  target: {
+var addresses = {
+  'ayro.nz': {
     host: '127.0.0.1'
   , port: '3000'
   }
-});
-
-var webrec = new httpProxy.HttpProxy({
-  target: {
+, 'webrec.ayro.nz': {
     host: '127.0.0.1'
   , port: '4000'
   }
-});
+}
+var proxies = Object.keys(addresses).reduce((o,name)=>{
+  o[name] = new httpProxy.createProxyServer({target: addresses[name]});
+  return o;
+}, {});
 
-var server = http.createServer(function(req ,res){
-  switch(req.headers.host){
-    case 'ayro.nz':
-      home.proxyRequest(req, res);
-    break;
-    case 'webrec.ayro.nz':
-      webrec.proxyRequest(req, res);
-    break;
+var server = http.createServer(function(req, res){
+  if (!proxies.hasOwnProperty(req.headers.host)){
+    console.log('Could not find:', req.headers.host);
   }
+  proxies[req.headers.host].web(req, res);
 });
-
-server.on('upgrade', function(req, socket, head){
-  // Cases need only for servers that actually use websockets
-  switch(req.headers.host){
-    case 'ayro.nz':
-      home.proxyWebSocketRequest(req, socket, head);
-    break;
-    case 'webrec.ayro.nz':
-      webrec.proxyWebSocketRequest(req, socket, head);
-    break;
+server.on('upgrade', function (req, socket, head) {
+  if (!proxies.hasOwnProperty(req.headers.host)){
+    console.log('Upgrade: could not find:', req.headers.host);
   }
+  proxies[req.headers.host].ws(req, socket, head);
 });
 
-server.listen(80);
+console.log('Listening on port:',process.env.PORT || 8000);
+server.listen(process.env.PORT || 8000);
+
+
