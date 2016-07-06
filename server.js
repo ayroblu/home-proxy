@@ -19,12 +19,16 @@ var proxies = Object.keys(addresses).reduce((o,name)=>{
 var server = http.createServer(function(req, res){
   if (!proxies.hasOwnProperty(req.headers.host)){
     console.log('Could not find:', req.headers.host);
+    res.status(400).send('Bad Address');
+    return;
   }
   proxies[req.headers.host].web(req, res);
 });
 server.on('upgrade', function (req, socket, head) {
   if (!proxies.hasOwnProperty(req.headers.host)){
     console.log('Upgrade: could not find:', req.headers.host);
+    res.status(400).send('Bad Address');
+    return;
   }
   proxies[req.headers.host].ws(req, socket, head);
 });
