@@ -1,9 +1,12 @@
 var fs = require('fs')
 , tls = require('tls')
+, http = require('http')
 , https = require('https')
 , httpProxy = require('http-proxy')
 , url = require('url')
-
+, finalhandler = require('finalhandler')
+, serveStatic = require('serve-static')
+ 
 var certs = {
   "webrec.ayro.nz": {
     key: fs.readFileSync('/etc/letsencrypt/live/webrec.ayro.nz/privkey.pem')
@@ -50,9 +53,20 @@ var httpsOptions = {
 , ca: fs.readFileSync('/etc/letsencrypt/live/ayro.nz/chain.pem')
 }
 
+var serve = serveStatic('public')
+var redir = http.createServer(function(req, res){
+  if (req.url.indexOf('.well-known') > -1) {
+    serve(req, res, finalhandler(req, res));
+    return;
+  }
+  res.writeHead(302, {
+    'Location': 'https://'+req.headers.host+req.url
+  });
+  res.end();
+});
+redir.listen(80);
+
 var server = https.createServer(httpsOptions, function(req, res){
-  console.log('hostname',url.parse('https://'+req.headers.host).hostname);
-  console.log(Object.keys(addresses), 'Index: ',Object.keys(addresses).indexOf(url.parse('https://'+req.headers.host).hostname) > -1);
   var hostname = url.parse('https://'+req.headers.host).hostname;
   if (Object.keys(addresses).indexOf(hostname) > -1){
     proxies[hostname].web(req, res);
