@@ -1,79 +1,74 @@
-var fs = require('fs')
-, tls = require('tls')
-, http = require('http')
-, https = require('https')
-, httpProxy = require('http-proxy')
-, url = require('url')
-, finalhandler = require('finalhandler')
-, serveStatic = require('serve-static')
- 
-var certs = {
-  "webrec.ayro.nz": {
-    key: fs.readFileSync('/etc/letsencrypt/live/webrec.ayro.nz/privkey.pem')
-  , cert: fs.readFileSync('/etc/letsencrypt/live/webrec.ayro.nz/fullchain.pem')
-  , ca: fs.readFileSync('/etc/letsencrypt/live/webrec.ayro.nz/chain.pem')
+const fs = require('fs')
+const tls = require('tls')
+const http = require('http')
+const https = require('https')
+const httpProxy = require('http-proxy')
+const url = require('url')
+const finalhandler = require('finalhandler')
+const serveStatic = require('serve-static')
+const _ = require('lodash')
+
+const sites = require('./sites')
+
+function convertLetsEncrypt(key, entry){
+  const letsEncryptDir = '/etc/letsencrypt/live/'
+  return {
+    cert: {
+      key: fs.readFileSync(letsEncryptDir + key + '/privkey.pem')
+    , cert: fs.readFileSync(letsEncryptDir + key + '/fullchain.pem')
+    , ca: fs.readFileSync(letsEncryptDir + key + '/chain.pem')
+    }
+  , address: _.pick(entry, ['host', 'port'])
   }
-, "ayro.nz": {
-    key: fs.readFileSync('/etc/letsencrypt/live/ayro.nz/privkey.pem')
-  , cert: fs.readFileSync('/etc/letsencrypt/live/ayro.nz/fullchain.pem')
-  , ca: fs.readFileSync('/etc/letsencrypt/live/ayro.nz/chain.pem')
+}
+function convertElse(key, entry){
+  return {
+    cert: entry.cert
+  , address: _.pick(entry, ['host', 'port'])
   }
 }
 
-var addresses = {
-  'ayro.nz': {
-    host: 'localhost'
-  , port: '3000'
-  }
-, 'webrec.ayro.nz': {
-    host: 'localhost'
-  , port: '4000'
-  }
-}
-var ssls = Object.keys(certs).reduce((o, name)=>{
-  o[name] = new httpProxy.createProxyServer({
-    ssl: certs[name]
-  , target: addresses[name]
-  });
-  return o;
-}, {});
+const { certs, addresses } = Object.keys(sites).reduce((a, n)=>{
+  const { cert, address } = sites[n].type === 'letsencrypt' ? convertLetsEncrypt(n, sites[n]) : convertElse(n, sites[n])
+  a.certs.push(cert)
+  a.addresses.push(address)
+  return a
+}, {certs: [], addresses: []})
 
-var proxies = Object.keys(addresses).reduce((o,name)=>{
-  o[name] = new httpProxy.createProxyServer({target: addresses[name]});
-  return o;
-}, {});
-
-var httpsOptions = {
-  SNICallback: function(hostname, cb) {
-    var ctx = tls.createSecureContext(certs[hostname])
-    cb(null, ctx)
-  }
-, key: fs.readFileSync('/etc/letsencrypt/live/ayro.nz/privkey.pem')
-, cert: fs.readFileSync('/etc/letsencrypt/live/ayro.nz/fullchain.pem')
-, ca: fs.readFileSync('/etc/letsencrypt/live/ayro.nz/chain.pem')
-}
-
-var serve = serveStatic('public')
-var redir = http.createServer(function(req, res){
+const serve = serveStatic('public')
+const redir = http.createServer(function(req, res){
   if (req.url.indexOf('.well-known') > -1) {
-    serve(req, res, finalhandler(req, res));
-    return;
+    serve(req, res, finalhandler(req, res))
+    return
   }
   res.writeHead(302, {
     'Location': 'https://'+req.headers.host+req.url
-  });
-  res.end();
-});
-redir.listen(80);
+  })
+  res.end()
+})
+ 
+const proxies = Object.keys(addresses).reduce((o,name)=>{
+  o[name] = new httpProxy.createProxyServer({target: addresses[name]})
+  return o
+}, {})
 
-var server = https.createServer(httpsOptions, function(req, res){
-  var hostname = url.parse('https://'+req.headers.host).hostname;
-  if (Object.keys(addresses).indexOf(hostname) > -1){
-    proxies[hostname].web(req, res);
-    return;
+const httpsOptions = {
+  SNICallback(hostname, cb) {
+    const ctx = tls.createSecureContext(certs[hostname])
+    cb(null, ctx)
   }
-});
-server.listen(443);
+  // Default, probably unnecessary, but as a fallback
+, ...certs[Object.keys(certs)[0]]
+}
 
+const server = https.createServer(httpsOptions, function(req, res){
+  const hostname = url.parse('https://'+req.headers.host).hostname
+  if (Object.keys(addresses).indexOf(hostname) > -1){
+    proxies[hostname].web(req, res)
+    return
+  }
+})
 
+redir.listen(80)
+server.listen(443)
 

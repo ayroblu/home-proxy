@@ -1,0 +1,28 @@
+{
+  "webrec.ayro.nz": {
+    "type": "letsencrypt",
+    "host": "localhost",
+    "port": "4000"
+  }
+, "ayro.nz": {
+    "type": "letsencrypt",
+    "host": "localhost",
+    "port": "3000"
+  }
+, "aklbuses.nz": {
+    "type": "letsencrypt",
+    "host": "localhost",
+    "port": "3000"
+  }
+, "benlu.nz": {
+    "type": "letsencrypt",
+    "host": "localhost",
+    "port": "3000"
+  }
+, "benlu.me": {
+    "type": "letsencrypt",
+    "host": "localhost",
+    "port": "3000"
+  }
+}
+
