@@ -52,14 +52,13 @@ const proxies = Object.keys(addresses).reduce((o,name)=>{
   return o
 }, {})
 
-const httpsOptions = {
+const httpsOptions = Object.assign({
   SNICallback(hostname, cb) {
     const ctx = tls.createSecureContext(certs[hostname])
     cb(null, ctx)
   }
   // Default, probably unnecessary, but as a fallback
-, ...certs[Object.keys(certs)[0]]
-}
+}, certs[Object.keys(certs)[0]])
 
 const server = https.createServer(httpsOptions, function(req, res){
   const hostname = url.parse('https://'+req.headers.host).hostname
