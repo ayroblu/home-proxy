@@ -30,10 +30,10 @@ function convertElse(key, entry){
 
 const { certs, addresses } = Object.keys(sites).reduce((a, n)=>{
   const { cert, address } = sites[n].type === 'letsencrypt' ? convertLetsEncrypt(n, sites[n]) : convertElse(n, sites[n])
-  a.certs.push(cert)
-  a.addresses.push(address)
+  a.certs[n] = cert
+  a.addresses[n] = address
   return a
-}, {certs: [], addresses: []})
+}, {certs: {}, addresses: {}})
 
 const serve = serveStatic('public')
 const redir = http.createServer(function(req, res){
