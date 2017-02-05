@@ -12,7 +12,7 @@
 , "aklbuses.nz": {
     "type": "letsencrypt",
     "host": "localhost",
-    "port": "3000"
+    "port": "5050"
   }
 , "benlu.nz": {
     "type": "letsencrypt",

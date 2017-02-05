@@ -1,7 +1,8 @@
 const fs = require('fs')
 const tls = require('tls')
 const http = require('http')
-const https = require('https')
+//const https = require('https')
+const spdy = require('spdy')
 const httpProxy = require('http-proxy')
 const url = require('url')
 const finalhandler = require('finalhandler')
@@ -60,7 +61,7 @@ const httpsOptions = Object.assign({
   // Default, probably unnecessary, but as a fallback
 }, certs[Object.keys(certs)[0]])
 
-const server = https.createServer(httpsOptions, function(req, res){
+const server = spdy.createServer(httpsOptions, function(req, res){
   const hostname = url.parse('https://'+req.headers.host).hostname
   if (Object.keys(addresses).indexOf(hostname) > -1){
     proxies[hostname].web(req, res)
